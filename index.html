@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Staff Directory</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#004080;
+  --navy-dark:#002d5a;
+  --gold:#ffc107;
+  --ink:#1f2733;
+  --muted:#6b7683;
+  --line:#d9dee5;
+  --bg:#eef1f5;
+  --white:#ffffff;
+  --danger:#b3261e;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Roboto',Arial,Helvetica,sans-serif;
+  font-size:15px;
+  line-height:1.45;
+  padding-bottom:40px;
+}
+h1,h2,h3,.tab,.pill,.btn,.lvl{font-family:'Oswald','Arial Narrow',Arial,sans-serif;letter-spacing:.4px}
+
+header{
+  background:var(--navy);
+  border-bottom:5px solid var(--gold);
+  padding:14px 16px 12px;
+}
+header h1{
+  margin:0;
+  color:var(--white);
+  font-size:22px;
+  font-weight:600;
+  text-transform:uppercase;
+}
+header p{margin:2px 0 0;color:#bcd2e8;font-size:12px;text-transform:uppercase;letter-spacing:1px}
+
+.tabs{display:flex;background:var(--navy-dark)}
+.tab{
+  flex:1;
+  padding:12px 8px;
+  text-align:center;
+  color:#c9d8e8;
+  font-size:15px;
+  text-transform:uppercase;
+  cursor:pointer;
+  border:0;
+  background:none;
+  border-bottom:4px solid transparent;
+}
+.tab.on{color:var(--white);border-bottom-color:var(--gold);background:rgba(255,255,255,.06)}
+.tab:focus-visible{outline:3px solid var(--gold);outline-offset:-3px}
+
+.wrap{max-width:1080px;margin:0 auto;padding:16px}
+.panel{display:none}
+.panel.on{display:block}
+
+/* double border card, ICF style */
+.card{
+  background:var(--white);
+  border:2px solid var(--navy);
+  outline:1px solid var(--navy);
+  outline-offset:3px;
+  padding:16px;
+  margin:6px 2px 22px;
+}
+.card h2{
+  margin:0 0 14px;
+  font-size:17px;
+  text-transform:uppercase;
+  color:var(--navy);
+  border-bottom:2px solid var(--gold);
+  padding-bottom:7px;
+}
+
+label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--navy);margin:0 0 5px}
+input,select,textarea{
+  width:100%;
+  padding:11px 10px;
+  border:1px solid var(--line);
+  border-radius:3px;
+  font-family:inherit;
+  font-size:15px;
+  background:#fbfcfd;
+  color:var(--ink);
+}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--navy);box-shadow:0 0 0 3px rgba(0,64,128,.15);background:var(--white)}
+textarea{resize:vertical;min-height:64px}
+.field{margin-bottom:14px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row .field{flex:1 1 220px;margin-bottom:14px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.req{color:var(--danger)}
+
+.photo-box{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.preview{
+  width:118px;height:140px;flex:0 0 auto;
+  border:2px dashed var(--line);
+  background:#f4f6f9 center/cover no-repeat;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:11px;text-align:center;padding:6px;
+}
+.preview.has{border-style:solid;border-color:var(--navy)}
+.photo-actions{flex:1 1 200px;display:flex;flex-direction:column;gap:9px}
+
+.btn{
+  display:inline-block;
+  padding:11px 18px;
+  border:0;border-radius:3px;
+  background:var(--navy);color:var(--white);
+  font-size:15px;text-transform:uppercase;
+  cursor:pointer;
+}
+.btn:hover{background:var(--navy-dark)}
+.btn.gold{background:var(--gold);color:#3a2d00;font-weight:600}
+.btn.gold:hover{background:#e9ae00}
+.btn.ghost{background:var(--white);color:var(--navy);border:1px solid var(--navy)}
+.btn.ghost:hover{background:#eaf1f8}
+.btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.btn.block{width:100%}
+.form-foot{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+
+.msg{
+  margin:0 0 14px;padding:11px 12px;border-left:5px solid var(--gold);
+  background:#fff8e1;font-size:14px;display:none;
+}
+.msg.on{display:block}
+.msg.bad{border-left-color:var(--danger);background:#fdeceb}
+
+/* dashboard */
+.offices{display:flex;gap:8px;flex-wrap:wrap;margin:0 2px 18px}
+.pill{
+  padding:9px 15px;border:1px solid var(--navy);background:var(--white);
+  color:var(--navy);font-size:14px;text-transform:uppercase;cursor:pointer;border-radius:3px;
+}
+.pill.on{background:var(--navy);color:var(--white)}
+.pill span{font-family:'Roboto',sans-serif;font-size:12px;opacity:.75;margin-left:6px}
+.pill:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.band{
+  display:flex;align-items:center;gap:10px;
+  margin:22px 2px 12px;
+}
+.band .lvl{
+  background:var(--navy);color:var(--white);padding:5px 12px;font-size:14px;text-transform:uppercase;
+}
+.band hr{flex:1;border:0;border-top:2px solid var(--gold);margin:0}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:16px;padding:0 2px}
+.staff{
+  background:var(--white);
+  border:2px solid var(--navy);
+  outline:1px solid var(--navy);
+  outline-offset:3px;
+  overflow:hidden;
+}
+.staff .img{width:100%;aspect-ratio:4/5;background:#dde3ea center/cover no-repeat;display:block;border-bottom:4px solid var(--gold)}
+.staff .body{padding:11px 12px 13px}
+.staff .nm{font-family:'Oswald',sans-serif;font-size:17px;font-weight:600;color:var(--navy);text-transform:uppercase;line-height:1.2}
+.staff .dg{font-size:13px;font-weight:500;margin-top:2px}
+.staff dl{margin:9px 0 0;font-size:12.5px;color:var(--muted)}
+.staff dl div{display:flex;gap:6px;margin-bottom:3px}
+.staff dt{flex:0 0 58px;font-weight:700;color:var(--navy);text-transform:uppercase;font-size:11px;padding-top:1px}
+.staff dd{margin:0;flex:1;word-break:break-word}
+.staff .tag{
+  display:inline-block;margin-top:10px;background:var(--gold);color:#3a2d00;
+  font-family:'Oswald',sans-serif;font-size:12px;padding:3px 9px;text-transform:uppercase;
+}
+.staff .rm{
+  display:block;width:100%;margin-top:11px;padding:7px;
+  background:var(--white);border:1px solid var(--line);color:var(--muted);
+  font-size:12px;text-transform:uppercase;cursor:pointer;border-radius:3px;
+}
+.staff .rm:hover{border-color:var(--danger);color:var(--danger)}
+
+.empty{
+  border:2px dashed var(--line);background:var(--white);
+  padding:34px 18px;text-align:center;color:var(--muted);margin:0 2px;
+}
+.empty strong{display:block;font-family:'Oswald',sans-serif;font-size:18px;color:var(--navy);text-transform:uppercase;margin-bottom:6px}
+
+@media (max-width:520px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  header h1{font-size:19px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .staff{transition:transform .15s ease}
+  .staff:hover{transform:translateY(-2px)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Staff Directory</h1>
+  <p>Registration and office dashboard</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab on" id="tabForm" onclick="show('form')">Register staff</button>
+  <button class="tab" id="tabDash" onclick="show('dash')">Dashboard</button>
+</nav>
+
+<div class="wrap">
+
+  <!-- ============ FORM ============ -->
+  <section class="panel on" id="panelForm">
+    <div class="msg" id="msg"></div>
+
+    <div class="card">
+      <h2>Staff details</h2>
+
+      <div class="field">
+        <label>Photo <span class="req">*</span></label>
+        <div class="photo-box">
+          <div class="preview" id="preview">No photo yet</div>
+          <div class="photo-actions">
+            <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+            <input type="file" id="fileIn" accept="image/*" hidden>
+            <button class="btn gold" type="button" onclick="document.getElementById('camIn').click()">Take photo</button>
+            <button class="btn ghost" type="button" onclick="document.getElementById('fileIn').click()">Choose from gallery</button>
+            <button class="btn ghost" type="button" id="clearPhoto" onclick="clearPhoto()" style="display:none">Remove photo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fName">Full name <span class="req">*</span></label>
+        <input id="fName" type="text" autocomplete="name" placeholder="e.g. Aminata Kamara">
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="fPhone">Telephone <span class="req">*</span></label>
+          <input id="fPhone" type="tel" inputmode="tel" placeholder="e.g. +232 76 000 000">
+        </div>
+        <div class="field">
+          <label for="fDesig">Designation <span class="req">*</span></label>
+          <input id="fDesig" type="text" placeholder="e.g. M&amp;E Officer">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="fPlace">Place of work <span class="req">*</span></label>
+          <select id="fPlace">
+            <option value="">Select office</option>
+            <option>NMCP</option>
+            <option>ICF</option>
+            <option>DPPI</option>
+            <option>DPH</option>
+            <option>UNICEF</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fLevel">Level <span class="req">*</span></label>
+          <select id="fLevel">
+            <option value="">Select level</option>
+          </select>
+          <div class="hint">Grade 14 is the highest level, Grade 1 the lowest.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fAddr">Address <span class="req">*</span></label>
+        <textarea id="fAddr" placeholder="House number, street, area, town"></textarea>
+      </div>
+
+      <div class="form-foot">
+        <button class="btn" type="button" onclick="saveStaff()">Save staff</button>
+        <button class="btn ghost" type="button" onclick="resetForm(true)">Clear form</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section class="panel" id="panelDash">
+    <div class="offices" id="offices"></div>
+    <div id="dashBody"></div>
+  </section>
+
+</div>
+
+<script>
+/* ---------- config ---------- */
+var OFFICES = ['NMCP','ICF','DPPI','DPH','UNICEF'];
+var LEVELS = [];           /* rank 14 down to 1 */
+for (var g = 14; g >= 1; g--) LEVELS.push({ rank: g, label: 'Grade ' + g });
+
+var KEY = 'icf_staff_directory_v1';
+var staff = [];
+var photoData = '';
+var currentOffice = 'ALL';
+
+/* ---------- storage (falls back to memory if blocked) ---------- */
+function load(){
+  try {
+    var raw = window.localStorage.getItem(KEY);
+    staff = raw ? JSON.parse(raw) : [];
+  } catch (e) { staff = []; }
+  if (!Array.isArray(staff)) staff = [];
+}
+function save(){
+  try { window.localStorage.setItem(KEY, JSON.stringify(staff)); return true; }
+  catch (e) { return false; }
+}
+
+/* ---------- tabs ---------- */
+function show(which){
+  document.getElementById('panelForm').classList.toggle('on', which === 'form');
+  document.getElementById('panelDash').classList.toggle('on', which === 'dash');
+  document.getElementById('tabForm').classList.toggle('on', which === 'form');
+  document.getElementById('tabDash').classList.toggle('on', which === 'dash');
+  if (which === 'dash') renderDash();
+  window.scrollTo(0,0);
+}
+
+/* ---------- photo ---------- */
+function handleFile(file){
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){ shrink(ev.target.result); };
+  reader.readAsDataURL(file);
+}
+function shrink(dataUrl){
+  var img = new Image();
+  img.onload = function(){
+    var maxW = 640, maxH = 800;
+    var w = img.width, h = img.height;
+    var s = Math.min(1, maxW / w, maxH / h);
+    var c = document.createElement('canvas');
+    c.width = Math.round(w * s);
+    c.height = Math.round(h * s);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    photoData = c.toDataURL('image/jpeg', 0.72);
+    paintPreview();
+  };
+  img.onerror = function(){ note('That file could not be read as an image. Try another photo.', true); };
+  img.src = dataUrl;
+}
+function paintPreview(){
+  var p = document.getElementById('preview');
+  if (photoData){
+    p.style.backgroundImage = 'url(' + photoData + ')';
+    p.textContent = '';
+    p.classList.add('has');
+    document.getElementById('clearPhoto').style.display = 'inline-block';
+  } else {
+    p.style.backgroundImage = 'none';
+    p.textContent = 'No photo yet';
+    p.classList.remove('has');
+    document.getElementById('clearPhoto').style.display = 'none';
+  }
+}
+function clearPhoto(){
+  photoData = '';
+  document.getElementById('camIn').value = '';
+  document.getElementById('fileIn').value = '';
+  paintPreview();
+}
+
+/* ---------- messages ---------- */
+function note(text, bad){
+  var m = document.getElementById('msg');
+  m.textContent = text;
+  m.className = 'msg on' + (bad ? ' bad' : '');
+  window.scrollTo(0,0);
+  if (!bad) setTimeout(function(){ m.className = 'msg'; }, 4000);
+}
+
+/* ---------- save record ---------- */
+function saveStaff(){
+  var name  = document.getElementById('fName').value.trim();
+  var phone = document.getElementById('fPhone').value.trim();
+  var desig = document.getElementById('fDesig').value.trim();
+  var place = document.getElementById('fPlace').value;
+  var lvl   = document.getElementById('fLevel').value;
+  var addr  = document.getElementById('fAddr').value.trim();
+
+  var missing = [];
+  if (!photoData) missing.push('photo');
+  if (!name)  missing.push('full name');
+  if (!phone) missing.push('telephone');
+  if (!desig) missing.push('designation');
+  if (!place) missing.push('place of work');
+  if (!lvl)   missing.push('level');
+  if (!addr)  missing.push('address');
+
+  if (missing.length){
+    note('Add the ' + missing.join(', ') + ' before saving.', true);
+    return;
+  }
+
+  staff.push({
+    id: 'S' + Date.now(),
+    name: name,
+    phone: phone,
+    designation: desig,
+    place: place,
+    rank: parseInt(lvl, 10),
+    address: addr,
+    photo: photoData,
+    saved: new Date().toISOString()
+  });
+
+  var ok = save();
+  resetForm(false);
+  note(ok
+    ? name + ' saved. Open the dashboard to see the card.'
+    : name + ' added to this session only. This browser is blocking saved storage, so the record is lost when the page closes.',
+    !ok);
+}
+
+function resetForm(withMessage){
+  ['fName','fPhone','fDesig','fAddr'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('fPlace').value = '';
+  document.getElementById('fLevel').value = '';
+  clearPhoto();
+  if (withMessage) note('Form cleared.');
+}
+
+/* ---------- dashboard ---------- */
+function levelLabel(rank){
+  for (var i = 0; i < LEVELS.length; i++) if (LEVELS[i].rank === rank) return LEVELS[i].label;
+  return 'Grade ' + rank;
+}
+
+function renderOffices(){
+  var box = document.getElementById('offices');
+  var html = '';
+  var allCount = staff.length;
+  html += '<button class="pill' + (currentOffice === 'ALL' ? ' on' : '') +
+          '" onclick="pickOffice(\'ALL\')">All offices<span>' + allCount + '</span></button>';
+  OFFICES.forEach(function(o){
+    var n = staff.filter(function(s){ return s.place === o; }).length;
+    html += '<button class="pill' + (currentOffice === o ? ' on' : '') +
+            '" onclick="pickOffice(\'' + o + '\')">' + o + '<span>' + n + '</span></button>';
+  });
+  box.innerHTML = html;
+}
+
+function pickOffice(o){
+  currentOffice = o;
+  renderDash();
+}
+
+function esc(t){
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function cardHtml(s){
+  return '' +
+  '<article class="staff">' +
+    '<span class="img" style="background-image:url(' + s.photo + ')" role="img" aria-label="Photo of ' + esc(s.name) + '"></span>' +
+    '<div class="body">' +
+      '<div class="nm">' + esc(s.name) + '</div>' +
+      '<div class="dg">' + esc(s.designation) + '</div>' +
+      '<dl>' +
+        '<div><dt>Level</dt><dd>' + levelLabel(s.rank) + '</dd></div>' +
+        '<div><dt>Phone</dt><dd>' + esc(s.phone) + '</dd></div>' +
+        '<div><dt>Address</dt><dd>' + esc(s.address) + '</dd></div>' +
+      '</dl>' +
+      '<span class="tag">' + esc(s.place) + '</span>' +
+      '<button class="rm" onclick="removeStaff(\'' + s.id + '\')">Remove</button>' +
+    '</div>' +
+  '</article>';
+}
+
+function renderDash(){
+  renderOffices();
+  var body = document.getElementById('dashBody');
+  var list = currentOffice === 'ALL' ? staff.slice() : staff.filter(function(s){ return s.place === currentOffice; });
+
+  if (!list.length){
+    body.innerHTML = '<div class="empty"><strong>No staff here yet</strong>' +
+      (staff.length
+        ? 'No one is registered under ' + esc(currentOffice) + '. Pick another office, or register a staff member.'
+        : 'Register the first staff member on the form tab and the card appears here.') +
+      '</div>';
+    return;
+  }
+
+  /* highest level first, then name */
+  list.sort(function(a,b){
+    if (b.rank !== a.rank) return b.rank - a.rank;
+    return a.name.localeCompare(b.name);
+  });
+
+  var html = '';
+  if (currentOffice === 'ALL'){
+    OFFICES.forEach(function(o){
+      var group = list.filter(function(s){ return s.place === o; });
+      if (!group.length) return;
+      html += '<div class="band"><span class="lvl">' + o + '</span><hr></div>';
+      html += '<div class="grid">' + group.map(cardHtml).join('') + '</div>';
+    });
+  } else {
+    var rank = null;
+    var open = false;
+    list.forEach(function(s){
+      if (s.rank !== rank){
+        if (open) html += '</div>';
+        html += '<div class="band"><span class="lvl">' + levelLabel(s.rank) + '</span><hr></div><div class="grid">';
+        rank = s.rank;
+        open = true;
+      }
+      html += cardHtml(s);
+    });
+    if (open) html += '</div>';
+  }
+  body.innerHTML = html;
+}
+
+function removeStaff(id){
+  var s = staff.filter(function(x){ return x.id === id; })[0];
+  if (!s) return;
+  if (!window.confirm('Remove ' + s.name + ' from the directory?')) return;
+  staff = staff.filter(function(x){ return x.id !== id; });
+  save();
+  renderDash();
+}
+
+/* ---------- start ---------- */
+(function init(){
+  var sel = document.getElementById('fLevel');
+  LEVELS.forEach(function(l){
+    var o = document.createElement('option');
+    o.value = l.rank;
+    o.textContent = l.label;
+    sel.appendChild(o);
+  });
+  document.getElementById('camIn').addEventListener('change', function(e){ handleFile(e.target.files[0]); });
+  document.getElementById('fileIn').addEventListener('change', function(e){ handleFile(e.target.files[0]); });
+  load();
+  paintPreview();
+})();
+</script>
+</body>
+</html>

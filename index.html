@@ -181,6 +181,23 @@ textarea{resize:vertical;min-height:64px}
 }
 .staff .rm:hover{border-color:var(--danger);color:var(--danger)}
 
+.syncbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--white);border:1px solid var(--line);border-left:5px solid var(--navy);
+  padding:10px 12px;margin:0 2px 16px;
+}
+.syncbar .st{flex:1 1 180px;font-size:13px;color:var(--muted);min-width:0}
+.syncbar .st b{color:var(--navy)}
+.syncbar .btn{padding:9px 14px;font-size:14px}
+
+.staff .src{
+  display:inline-block;margin:10px 0 0 6px;
+  font-family:'Oswald',sans-serif;font-size:11px;padding:3px 8px;text-transform:uppercase;
+  border:1px solid var(--line);color:var(--muted);
+}
+.staff .src.drive{border-color:var(--navy);color:var(--navy)}
+.staff .src.wait{border-color:#a06d00;color:#a06d00;background:#fff8e1}
+
 .empty{
   border:2px dashed var(--line);background:var(--white);
   padding:34px 18px;text-align:center;color:var(--muted);margin:0 2px;
@@ -325,6 +342,10 @@ img,svg,canvas,iframe,video,pre,table{max-width:100%}
 
   <!-- ============ DASHBOARD ============ -->
   <section class="panel" id="panelDash">
+    <div class="syncbar">
+      <div class="st" id="syncStatus">Checking Google Drive...</div>
+      <button class="btn ghost" type="button" onclick="syncNow(true)">Sync now</button>
+    </div>
     <div class="offices" id="offices"></div>
     <div id="dashBody"></div>
   </section>
@@ -333,14 +354,20 @@ img,svg,canvas,iframe,video,pre,table{max-width:100%}
 
 <script>
 /* ---------- config ---------- */
+/* Paste the Apps Script web app /exec URL here, from StaffDirectory.gs */
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiRa_gyUNUPJyHh5LF7-XP9WrMy5XyyDiDyWkt5DS0PEu4Zth-KRSm7oOwavX5Nj6_/exec';
+
 var OFFICES = ['NMCP','ICF','DPPI','DPH','UNICEF'];
 var LEVELS = [];           /* rank 14 down to 1 */
 for (var g = 14; g >= 1; g--) LEVELS.push({ rank: g, label: 'Grade ' + g });
 
 var KEY = 'icf_staff_directory_v1';
-var staff = [];
+var staff = [];            /* records held on this device */
+var remote = [];           /* records read back from Google Drive */
 var photoData = '';
 var currentOffice = 'ALL';
+var syncing = false;
+var pulled = false;
 
 /* ---------- storage (falls back to memory if blocked) ---------- */
 function load(){
@@ -361,7 +388,10 @@ function show(which){
   document.getElementById('panelDash').classList.toggle('on', which === 'dash');
   document.getElementById('tabForm').classList.toggle('on', which === 'form');
   document.getElementById('tabDash').classList.toggle('on', which === 'dash');
-  if (which === 'dash') renderDash();
+  if (which === 'dash'){
+    renderDash();
+    if (!pulled || pending().length) syncNow(false);
+  }
   window.scrollTo(0,0);
 }
 
@@ -450,15 +480,153 @@ function saveStaff(){
     rank: parseInt(lvl, 10),
     address: addr,
     photo: photoData,
+    photoUrl: '',
+    synced: false,
     saved: new Date().toISOString()
   });
 
   var ok = save();
+  var justSaved = staff[staff.length - 1];
   resetForm(false);
-  note(ok
-    ? name + ' saved. Open the dashboard to see the card.'
-    : name + ' added to this session only. This browser is blocking saved storage, so the record is lost when the page closes.',
-    !ok);
+
+  if (!ok){
+    note(name + ' added to this session only. This browser is blocking saved storage, so the record is lost when the page closes.', true);
+  } else if (!SCRIPT_URL){
+    note(name + ' saved on this device. Add the Apps Script URL to send records to Google Drive.');
+  } else {
+    note(name + ' saved on this device. Sending to Google Drive...');
+    push(justSaved, function(res){
+      if (res.ok) note(name + ' saved and now on Google Drive.');
+      else note(name + ' is saved on this device but has not reached Drive yet: ' + res.error + ' Use Sync now on the dashboard to try again.', true);
+    });
+  }
+}
+
+/* ---------- remote: push, pull, merge ---------- */
+function push(rec, done){
+  if (!SCRIPT_URL) { done({ ok:false, error:'No Apps Script URL is set.' }); return; }
+  var payload = {
+    action: 'save',
+    record: {
+      id: rec.id, name: rec.name, designation: rec.designation, phone: rec.phone,
+      address: rec.address, place: rec.place, rank: rec.rank,
+      levelLabel: levelLabel(rec.rank), saved: rec.saved, photo: rec.photo
+    }
+  };
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },  /* text/plain avoids a CORS preflight */
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res){
+    if (res && res.ok){
+      rec.synced = true;
+      rec.photoUrl = res.photoUrl || rec.photoUrl || '';
+      save();
+      done({ ok:true });
+    } else {
+      done({ ok:false, error: (res && res.error) ? res.error : 'The backend refused the record.' });
+    }
+  })
+  .catch(function(err){
+    done({ ok:false, error: 'No connection to the backend (' + err.message + ').' });
+  });
+}
+
+function pull(done){
+  if (!SCRIPT_URL) { done({ ok:false, error:'No Apps Script URL is set.' }); return; }
+  fetch(SCRIPT_URL + (SCRIPT_URL.indexOf('?') > -1 ? '&' : '?') + 'action=list')
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if (res && res.ok && Array.isArray(res.records)){
+        remote = res.records;
+        pulled = true;
+        done({ ok:true, count: remote.length });
+      } else {
+        done({ ok:false, error: (res && res.error) ? res.error : 'The backend sent no records.' });
+      }
+    })
+    .catch(function(err){
+      done({ ok:false, error: 'No connection to the backend (' + err.message + ').' });
+    });
+}
+
+function pending(){
+  return staff.filter(function(s){ return !s.synced; });
+}
+
+function syncNow(loud){
+  if (syncing) return;
+  if (!SCRIPT_URL){
+    setStatus('Working from this device only. Paste the Apps Script URL into SCRIPT_URL to save to Google Drive.');
+    return;
+  }
+  syncing = true;
+  var queue = pending();
+  setStatus(queue.length ? 'Sending ' + queue.length + ' record(s) to Google Drive...' : 'Reading Google Drive...');
+
+  var left = queue.length;
+  var failed = 0;
+
+  function thenPull(){
+    pull(function(res){
+      syncing = false;
+      if (res.ok){
+        var extra = failed ? ' ' + failed + ' record(s) could not be sent.' : '';
+        setStatus('Drive holds <b>' + res.count + '</b> record(s). On this device: <b>' + staff.length +
+                  '</b>, waiting to send: <b>' + pending().length + '</b>.' + extra);
+      } else {
+        setStatus('Showing this device only. ' + res.error);
+      }
+      renderDash();
+    });
+  }
+
+  if (!left) { thenPull(); return; }
+
+  queue.forEach(function(rec){
+    push(rec, function(res){
+      if (!res.ok) failed++;
+      left--;
+      if (left === 0) thenPull();
+    });
+  });
+}
+
+function setStatus(html){
+  document.getElementById('syncStatus').innerHTML = html;
+}
+
+/* one list from both sources, the device copy winning when a record is in both */
+function merged(){
+  var out = [];
+  var seen = {};
+  staff.forEach(function(s){
+    seen[s.id] = true;
+    out.push({
+      id: s.id, name: s.name, designation: s.designation, phone: s.phone,
+      address: s.address, place: s.place, rank: s.rank,
+      img: s.photo || s.photoUrl || '',
+      source: s.synced ? 'both' : 'wait'
+    });
+  });
+  remote.forEach(function(r){
+    if (seen[r.id]) return;
+    out.push({
+      id: r.id, name: r.name, designation: r.designation, phone: r.phone,
+      address: r.address, place: r.place, rank: r.rank,
+      img: r.photoUrl || '',
+      source: 'drive'
+    });
+  });
+  return out;
+}
+
+function sourceTag(source){
+  if (source === 'drive') return '<span class="src drive">On Drive</span>';
+  if (source === 'both')  return '<span class="src drive">Synced</span>';
+  return '<span class="src wait">Not sent yet</span>';
 }
 
 function resetForm(withMessage){
@@ -475,14 +643,13 @@ function levelLabel(rank){
   return 'Grade ' + rank;
 }
 
-function renderOffices(){
+function renderOffices(all){
   var box = document.getElementById('offices');
   var html = '';
-  var allCount = staff.length;
   html += '<button class="pill' + (currentOffice === 'ALL' ? ' on' : '') +
-          '" onclick="pickOffice(\'ALL\')">All offices<span>' + allCount + '</span></button>';
+          '" onclick="pickOffice(\'ALL\')">All offices<span>' + all.length + '</span></button>';
   OFFICES.forEach(function(o){
-    var n = staff.filter(function(s){ return s.place === o; }).length;
+    var n = all.filter(function(s){ return s.place === o; }).length;
     html += '<button class="pill' + (currentOffice === o ? ' on' : '') +
             '" onclick="pickOffice(\'' + o + '\')">' + o + '<span>' + n + '</span></button>';
   });
@@ -501,7 +668,7 @@ function esc(t){
 function cardHtml(s){
   return '' +
   '<article class="staff">' +
-    '<span class="img" style="background-image:url(' + s.photo + ')" role="img" aria-label="Photo of ' + esc(s.name) + '"></span>' +
+    '<span class="img" style="background-image:url(' + s.img + ')" role="img" aria-label="Photo of ' + esc(s.name) + '"></span>' +
     '<div class="body">' +
       '<div class="nm">' + esc(s.name) + '</div>' +
       '<div class="dg">' + esc(s.designation) + '</div>' +
@@ -510,20 +677,21 @@ function cardHtml(s){
         '<div><dt>Phone</dt><dd>' + esc(s.phone) + '</dd></div>' +
         '<div><dt>Address</dt><dd>' + esc(s.address) + '</dd></div>' +
       '</dl>' +
-      '<span class="tag">' + esc(s.place) + '</span>' +
+      '<span class="tag">' + esc(s.place) + '</span>' + sourceTag(s.source) +
       '<button class="rm" onclick="removeStaff(\'' + s.id + '\')">Remove</button>' +
     '</div>' +
   '</article>';
 }
 
 function renderDash(){
-  renderOffices();
+  var all = merged();
+  renderOffices(all);
   var body = document.getElementById('dashBody');
-  var list = currentOffice === 'ALL' ? staff.slice() : staff.filter(function(s){ return s.place === currentOffice; });
+  var list = currentOffice === 'ALL' ? all : all.filter(function(s){ return s.place === currentOffice; });
 
   if (!list.length){
     body.innerHTML = '<div class="empty"><strong>No staff here yet</strong>' +
-      (staff.length
+      (all.length
         ? 'No one is registered under ' + esc(currentOffice) + '. Pick another office, or register a staff member.'
         : 'Register the first staff member on the form tab and the card appears here.') +
       '</div>';
@@ -562,12 +730,28 @@ function renderDash(){
 }
 
 function removeStaff(id){
-  var s = staff.filter(function(x){ return x.id === id; })[0];
+  var s = merged().filter(function(x){ return x.id === id; })[0];
   if (!s) return;
-  if (!window.confirm('Remove ' + s.name + ' from the directory?')) return;
+  if (!window.confirm('Remove ' + s.name + ' from this device and from Google Drive?')) return;
+
   staff = staff.filter(function(x){ return x.id !== id; });
   save();
+  remote = remote.filter(function(x){ return x.id !== id; });
   renderDash();
+
+  if (!SCRIPT_URL || s.source === 'wait') return;
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'delete', id: id })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res){
+    if (!res || !res.ok) setStatus('Removed here, but Drive still holds ' + esc(s.name) + '. Use Sync now to check.');
+  })
+  .catch(function(){
+    setStatus('Removed here, but Drive could not be reached, so ' + esc(s.name) + ' is still on Drive.');
+  });
 }
 
 /* ---------- start ---------- */

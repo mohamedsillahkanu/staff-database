@@ -459,7 +459,7 @@ img,svg,canvas,iframe,video,pre,table{max-width:100%}
   <!-- ============ DASHBOARD ============ -->
   <section class="panel" id="panelDash">
     <div class="syncbar">
-      <div class="st" id="syncStatus">Checking Google Drive...</div>
+      <div class="st" id="syncStatus">Checking the server...</div>
       <button class="btn ghost" type="button" onclick="syncNow(true)">Sync now</button>
     </div>
     <div class="offices" id="offices"></div>
@@ -495,7 +495,7 @@ img,svg,canvas,iframe,video,pre,table{max-width:100%}
 <div class="shade" id="rmShade">
   <div class="gate" role="dialog" aria-modal="true" aria-labelledby="rmTitle">
     <h3 id="rmTitle">Password needed</h3>
-    <p>Removing <b id="rmWho">this record</b> from this device and from Google Drive cannot be undone.</p>
+    <p>Removing <b id="rmWho">this record</b> from this device and from the server cannot be undone.</p>
     <div class="field">
       <label for="rmPass">Removal password <span class="req">*</span></label>
       <input id="rmPass" type="password" autocomplete="off" placeholder="Type the removal password">
@@ -519,7 +519,7 @@ for (var g = 14; g >= 1; g--) LEVELS.push({ rank: g, label: 'Grade ' + g });
 
 var KEY = 'icf_staff_directory_v1';
 var staff = [];            /* records held on this device */
-var remote = [];           /* records read back from Google Drive */
+var remote = [];           /* records read back from the server */
 var photoData = '';
 var currentOffice = 'ALL';
 var syncing = false;
@@ -740,12 +740,12 @@ function saveStaff(){
   if (!ok){
     note(name + ' added to this session only. This browser is blocking saved storage, so the record is lost when the page closes.', true);
   } else if (!SCRIPT_URL){
-    note(name + ' saved on this device. Add the Apps Script URL to send records to Google Drive.');
+    note(name + ' saved on this device. Add the Apps Script URL to send records to the server.');
   } else {
-    note(name + ' saved on this device. Sending to Google Drive...');
+    note(name + ' saved on this device. Sending to the server...');
     push(justSaved, function(res){
-      if (res.ok) note(name + ' saved and now on Google Drive.');
-      else note(name + ' is saved on this device but has not reached Drive yet: ' + res.error + ' Use Sync now on the dashboard to try again.', true);
+      if (res.ok) note(name + ' saved and now on the server.');
+      else note(name + ' is saved on this device but has not reached the server yet: ' + res.error + ' Use Sync now on the dashboard to try again.', true);
     });
   }
 }
@@ -808,12 +808,12 @@ function pending(){
 function syncNow(loud){
   if (syncing) return;
   if (!SCRIPT_URL){
-    setStatus('Working from this device only. Paste the Apps Script URL into SCRIPT_URL to save to Google Drive.');
+    setStatus('Working from this device only. Paste the Apps Script URL into SCRIPT_URL to save to the server.');
     return;
   }
   syncing = true;
   var queue = pending();
-  setStatus(queue.length ? 'Sending ' + queue.length + ' record(s) to Google Drive...' : 'Reading Google Drive...');
+  setStatus(queue.length ? 'Sending ' + queue.length + ' record(s) to the server...' : 'Reading the server...');
 
   var left = queue.length;
   var failed = 0;
@@ -823,7 +823,7 @@ function syncNow(loud){
       syncing = false;
       if (res.ok){
         var extra = failed ? ' ' + failed + ' record(s) could not be sent.' : '';
-        setStatus('Drive holds <b>' + res.count + '</b> record(s). On this device: <b>' + staff.length +
+        setStatus('The server holds <b>' + res.count + '</b> record(s). On this device: <b>' + staff.length +
                   '</b>, waiting to send: <b>' + pending().length + '</b>.' + extra);
       } else {
         setStatus('Showing this device only. ' + res.error);
@@ -874,7 +874,7 @@ function merged(){
 }
 
 function sourceTag(source){
-  if (source === 'drive') return '<span class="src drive">On Drive</span>';
+  if (source === 'drive') return '<span class="src drive">On the server</span>';
   if (source === 'both')  return '<span class="src drive">Synced</span>';
   return '<span class="src wait">Not sent yet</span>';
 }
@@ -1162,20 +1162,20 @@ function saveAccess(){
     return;
   }
   if (!SCRIPT_URL){
-    accStatus('<b>' + esc(who) + '</b> now has <b>' + tabs.length + '</b> tab(s), saved on this device. Google Drive was not updated because no Apps Script URL is set.', 'bad');
+    accStatus('<b>' + esc(who) + '</b> now has <b>' + tabs.length + '</b> tab(s), saved on this device. The server was not updated because no Apps Script URL is set.', 'bad');
     return;
   }
 
   if (btn){ btn.disabled = true; btn.classList.add('busy'); btn.textContent = 'Sending...'; }
-  accStatus('Sending ' + tabs.length + ' tab(s) for <b>' + esc(who) + '</b> to Google Drive...', 'wait');
+  accStatus('Sending ' + tabs.length + ' tab(s) for <b>' + esc(who) + '</b> to the server...', 'wait');
 
   pushAccess(id, tabs, function(res){
     if (btn){ btn.disabled = false; btn.classList.remove('busy'); btn.textContent = 'Save access'; }
     if (res.ok){
-      accStatus('Saved. The Access column on Google Drive now holds <b>' + res.count +
+      accStatus('Saved. The Access column on the server now holds <b>' + res.count +
                 '</b> tab(s) for <b>' + esc(who) + '</b>.', 'ok');
     } else {
-      accStatus('<b>' + esc(who) + '</b> is saved on this device, but Google Drive was not updated: ' +
+      accStatus('<b>' + esc(who) + '</b> is saved on this device, but the server was not updated: ' +
                 esc(res.error) + ' Press Save access again when the connection is back.', 'bad');
     }
   });
@@ -1267,7 +1267,7 @@ function downloadAccessCsv(){
 
   if (!SCRIPT_URL){ local('No Apps Script URL is set.'); return; }
 
-  accStatus('Reading Google Drive so every password is included...', 'wait');
+  accStatus('Reading the server so every password is included...', 'wait');
   fetch(SCRIPT_URL + (SCRIPT_URL.indexOf('?') > -1 ? '&' : '?') + 'action=accesscsv')
     .then(function(r){ return r.text(); })
     .then(function(text){
@@ -1276,12 +1276,12 @@ function downloadAccessCsv(){
         if (lines.length < 2){ local('The sheet holds no access rows yet.'); return; }
         saveCsvFile(text);
         accStatus('Saved. <b>access.csv</b> written with <b>' + (lines.length - 1) +
-                  '</b> staff member(s), straight from Google Drive, passwords included. Put the file beside the NMDR index.html.', 'ok');
+                  '</b> staff member(s), straight from the server, passwords included. Put the file beside the NMDR index.html.', 'ok');
       } else {
-        local('Google Drive did not send a readable file, so this copy came from the device.');
+        local('The server did not send a readable file, so this copy came from the device.');
       }
     })
-    .catch(function(){ local('Google Drive could not be reached, so this copy came from the device.'); });
+    .catch(function(){ local('The server could not be reached, so this copy came from the device.'); });
 }
 
 /* access read back from the sheet, for names this device never registered */
@@ -1467,11 +1467,11 @@ function doRemove(id){
   .then(function(res){
     if (!res || !res.ok){
       var why = (res && res.error) ? ' ' + res.error : '';
-      setStatus('Removed here, but Drive still holds ' + esc(s.name) + '.' + why + ' Use Sync now to check.');
+      setStatus('Removed here, but the server still holds ' + esc(s.name) + '.' + why + ' Use Sync now to check.');
     }
   })
   .catch(function(){
-    setStatus('Removed here, but Drive could not be reached, so ' + esc(s.name) + ' is still on Drive.');
+    setStatus('Removed here, but the server could not be reached, so ' + esc(s.name) + ' is still on the server.');
   });
 }
 

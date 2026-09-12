@@ -272,6 +272,12 @@ input.bad{border-color:var(--danger);box-shadow:0 0 0 3px rgba(179,38,30,.14)}
 .staff .ac:hover{background:#eaf1f8}
 .staff .ac b{font-family:'Roboto',sans-serif;font-size:11px;font-weight:700}
 .staff .ac.none{color:var(--muted);border-color:var(--line)}
+.staff .fp{
+  display:block;width:100%;margin-top:6px;padding:7px;
+  background:var(--white);border:1px dashed var(--line);color:var(--muted);
+  font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;cursor:pointer;border-radius:3px;
+}
+.staff .fp:hover{border-color:var(--navy);border-style:solid;color:var(--navy)}
 
 }
 
@@ -401,16 +407,18 @@ img,svg,canvas,iframe,video,pre,table{max-width:100%}
         </div>
       </div>
 
+      <div class="field">
+        <label for="fEmail">Email address <span class="req">*</span></label>
+        <input id="fEmail" type="email" inputmode="email" autocomplete="email" placeholder="e.g. name@moh.gov.sl">
+        <div class="err" id="eEmail"></div>
+        <div class="hint">Used to send the password back if it is forgotten, so it must be an address the staff member can open.</div>
+      </div>
+
       <div class="row">
         <div class="field">
           <label for="fPlace">Place of work <span class="req">*</span></label>
-          <select id="fPlace">
+          <select id="fPlace" onchange="togglePlaceOther()">
             <option value="">Select office</option>
-            <option>NMCP</option>
-            <option>ICF</option>
-            <option>DPPI</option>
-            <option>DPH</option>
-            <option>UNICEF</option>
           </select>
         </div>
         <div class="field">
@@ -420,6 +428,13 @@ img,svg,canvas,iframe,video,pre,table{max-width:100%}
           </select>
           <div class="hint">Grade 14 is the highest level, Grade 1 the lowest.</div>
         </div>
+      </div>
+
+      <div class="field" id="otherPlaceWrap" style="display:none">
+        <label for="fPlaceOther">Name the directorate or office <span class="req">*</span></label>
+        <input id="fPlaceOther" type="text" placeholder="e.g. Directorate of Policy Planning and Information">
+        <div class="err" id="ePlaceOther"></div>
+        <div class="hint">Type it once and it joins the list, so the next person can pick it.</div>
       </div>
 
       <div class="field">
@@ -491,6 +506,24 @@ img,svg,canvas,iframe,video,pre,table{max-width:100%}
   </div>
 </div>
 
+<!-- ============ FORGOTTEN PASSWORD ============ -->
+<div class="shade" id="fpShade">
+  <div class="gate" role="dialog" aria-modal="true" aria-labelledby="fpTitle">
+    <h3 id="fpTitle">Forgotten password</h3>
+    <p>Type the email address <b id="fpWho">this staff member</b> gave when registering. If it matches, the password is emailed to that address.</p>
+    <div class="field">
+      <label for="fpEmail">Email address <span class="req">*</span></label>
+      <input id="fpEmail" type="email" inputmode="email" autocomplete="off" placeholder="name@example.com">
+      <div class="err" id="eFpEmail"></div>
+    </div>
+    <div class="msg" id="fpMsg"></div>
+    <div class="form-foot">
+      <button class="btn" type="button" id="fpSend" onclick="sendForgot()">Send the password</button>
+      <button class="btn ghost" type="button" onclick="closeForgot()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ PASSWORD GATE FOR REMOVING A RECORD ============ -->
 <div class="shade" id="rmShade">
   <div class="gate" role="dialog" aria-modal="true" aria-labelledby="rmTitle">
@@ -540,6 +573,48 @@ function load(){
 function save(){
   try { window.localStorage.setItem(KEY, JSON.stringify(staff)); return true; }
   catch (e) { return false; }
+}
+
+/* ---------- place of work ---------- */
+/* The dropdown holds the standing offices plus any other directorate already
+   used on a record, so a name typed once is on the list from then on. */
+var OTHER = '__other';
+
+function placeOptions(){
+  var seen = {};
+  var out = [];
+  OFFICES.forEach(function(o){ if (!seen[o]) { seen[o] = true; out.push(o); } });
+  staff.concat(remote).forEach(function(r){
+    var pl = String(r && r.place ? r.place : '').trim();
+    if (pl && !seen[pl]) { seen[pl] = true; out.push(pl); }
+  });
+  return out;
+}
+
+function fillPlaces(){
+  var sel = document.getElementById('fPlace');
+  if (!sel) return;
+  var keep = sel.value;
+  var html = '<option value="">Select office</option>';
+  placeOptions().forEach(function(o){
+    html += '<option value="' + esc(o) + '">' + esc(o) + '</option>';
+  });
+  html += '<option value="' + OTHER + '">Other, name it below</option>';
+  sel.innerHTML = html;
+  sel.value = keep;
+  if (sel.value !== keep) sel.value = '';
+  togglePlaceOther();
+}
+
+function togglePlaceOther(){
+  var on = document.getElementById('fPlace').value === OTHER;
+  document.getElementById('otherPlaceWrap').style.display = on ? 'block' : 'none';
+  if (!on){
+    document.getElementById('fPlaceOther').value = '';
+    fieldErr('fPlaceOther', 'ePlaceOther', '');
+  } else {
+    setTimeout(function(){ document.getElementById('fPlaceOther').focus(); }, 40);
+  }
 }
 
 /* ---------- tabs ---------- */
@@ -651,6 +726,21 @@ function phoneOk(){
   return true;
 }
 
+/* ---------- email ---------- */
+function emailOk(){
+  var v = document.getElementById('fEmail').value.trim();
+  if (!v){
+    fieldErr('fEmail', 'eEmail', 'Type the email address.');
+    return false;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)){
+    fieldErr('fEmail', 'eEmail', 'Wrong entry. That does not look like an email address.');
+    return false;
+  }
+  fieldErr('fEmail', 'eEmail', '');
+  return true;
+}
+
 /* ---------- password ---------- */
 function togglePass(){
   var t = document.getElementById('showPass').checked ? 'text' : 'password';
@@ -688,8 +778,19 @@ function saveStaff(){
   var phone = document.getElementById('fPhone').value.trim();
   var desig = document.getElementById('fDesig').value.trim();
   var place = document.getElementById('fPlace').value;
+  if (place === OTHER){
+    place = document.getElementById('fPlaceOther').value.trim();
+    if (!place){
+      fieldErr('fPlaceOther', 'ePlaceOther', 'Name the directorate or office before saving.');
+      note('Name the directorate or office, or pick one from the list.', true);
+      document.getElementById('fPlaceOther').focus();
+      return;
+    }
+    fieldErr('fPlaceOther', 'ePlaceOther', '');
+  }
   var lvl   = document.getElementById('fLevel').value;
   var addr  = document.getElementById('fAddr').value.trim();
+  var email = document.getElementById('fEmail').value.trim();
   var pass  = document.getElementById('fPass').value;
 
   var missing = [];
@@ -700,6 +801,7 @@ function saveStaff(){
   if (!place) missing.push('place of work');
   if (!lvl)   missing.push('level');
   if (!addr)  missing.push('address');
+  if (!email) missing.push('email address');
   if (!pass)  missing.push('password');
 
   if (missing.length){
@@ -710,6 +812,12 @@ function saveStaff(){
   if (!phoneOk()){
     note('The telephone number must be exactly 9 digits, digits only.', true);
     document.getElementById('fPhone').focus();
+    return;
+  }
+
+  if (!emailOk()){
+    note('Check the email address before saving.', true);
+    document.getElementById('fEmail').focus();
     return;
   }
 
@@ -726,6 +834,7 @@ function saveStaff(){
     place: place,
     rank: parseInt(lvl, 10),
     address: addr,
+    email: email,
     password: pass,
     photo: photoData,
     photoUrl: '',
@@ -736,6 +845,7 @@ function saveStaff(){
   var ok = save();
   var justSaved = staff[staff.length - 1];
   resetForm(false);
+  fillPlaces();
 
   if (!ok){
     note(name + ' added to this session only. This browser is blocking saved storage, so the record is lost when the page closes.', true);
@@ -758,6 +868,7 @@ function push(rec, done){
     record: {
       id: rec.id, name: rec.name, designation: rec.designation, phone: rec.phone,
       address: rec.address, place: rec.place, rank: rec.rank,
+      email: rec.email || '',
       password: rec.password || '',
       levelLabel: levelLabel(rec.rank), saved: rec.saved, photo: rec.photo
     }
@@ -830,6 +941,7 @@ function syncNow(loud){
       }
       absorbRemoteAccess();
       renderDash();
+      fillPlaces();
     });
   }
 
@@ -880,12 +992,16 @@ function sourceTag(source){
 }
 
 function resetForm(withMessage){
-  ['fName','fPhone','fDesig','fAddr','fPass','fPass2'].forEach(function(id){ document.getElementById(id).value = ''; });
+  ['fName','fPhone','fDesig','fAddr','fEmail','fPass','fPass2'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.getElementById('fPlace').value = '';
   document.getElementById('fLevel').value = '';
+  document.getElementById('fPlaceOther').value = '';
+  fieldErr('fPlaceOther', 'ePlaceOther', '');
+  togglePlaceOther();
   document.getElementById('showPass').checked = false;
   togglePass();
   fieldErr('fPhone', 'ePhone', '');
+  fieldErr('fEmail', 'eEmail', '');
   fieldErr('fPass', 'ePass', '');
   fieldErr('fPass2', 'ePass2', '');
   clearPhoto();
@@ -904,7 +1020,7 @@ var ACCESS_KEY = 'icf_staff_access_v1';
 
 var NMDR_TABS = [
   { section: "Home", subs: [
-    { label: "Home", tabs: [["welcome","Welcome"]] },
+    { label: "Home", tabs: [["welcome","Welcome"], ["architecture","NMDR Architecture and Data Flow"], ["use-cases","NMDR Navigation"]] },
   ]},
   { section: "1.0 Malaria Surveillance", subs: [
     { label: "1.0.1.1 HMIS (Monthly)", tabs: [["hmis-extraction","1.0.1.1.1 Data Extraction"], ["hmis-epi-dashboard","1.0.1.1.2 Malaria Epi Dashboard"]] },
@@ -912,7 +1028,7 @@ var NMDR_TABS = [
     { label: "1.0.2 Monitoring and Evaluation", tabs: [["me-dqa","1.0.2.1 Data Quality Assessment"]] },
     { label: "1.0.2.2 Key Malaria Data Elements", tabs: [["med-suspected","1.0.2.2.1 Fever Suspected Malaria"], ["med-tested","1.0.2.2.2 Tested"], ["med-confirmed","1.0.2.2.3 Confirmed Malaria Case"], ["med-treated","1.0.2.2.4 Confirmed and Treated"], ["med-presumptive","1.0.2.2.5 Presumptive Treatment"], ["med-ptr","1.0.2.2.6 Treated"]] },
     { label: "1.0.2.3 Key Malaria Indicators", tabs: [["med-reporting","1.0.2.3.1 Reporting Rate"], ["med-testing","1.0.2.3.2 Testing Rate"], ["med-tpr","1.0.2.3.3 Test Positivity Rate"], ["med-cfr","1.0.2.3.4 Confirmed and Treatment Rate"]] },
-    { label: "1.0.2.4 Comparative Analysis on Key Indicators", tabs: [["med-comp-u5","1.0.2.4.1 Under Five"], ["med-comp-allages","1.0.2.4.2 All Ages"]] },
+    { label: "1.0.2.4 Comparative Analysis on Key Indicators", tabs: [["med-comp-u5","1.0.2.4.1 Under Five"], ["med-comp-allages","1.0.2.4.2 All Ages"], ["me-reports","1.0.2.5 Reporting"]] },
     { label: "1.0.3 Therapeutic Efficacy Study", tabs: [["tes-data","1.0.3.1 Data"], ["tes-report","1.0.3.2 Report"], ["tes-dashboard","1.0.3.3 Dashboard"]] },
   ]},
   { section: "2.0 Supply Chain", subs: [
@@ -930,18 +1046,19 @@ var NMDR_TABS = [
   { section: "5.0 Resources", subs: [
     { label: "5.0 Resources", tabs: [["user-guide","5.0.1 User Guide"], ["bulletins","5.0.2 Monthly Bulletin"], ["mpd","5.0.3 Malaria Programme Docs"]] },
     { label: "5.0.4 Survey", tabs: [["survey-data","5.0.4.1 Data"], ["survey-report","5.0.4.2 Report"]] },
-    { label: "5.0.5 Data Collection Tools", tabs: [["dct-sbd","5.0.5.1 SBD"], ["dct-mocm-phu","5.0.5.2 MOCM (PHU)"], ["dct-mocm-lab","5.0.5.3 MOCM (Lab)"], ["dct-mocm-hospital","5.0.5.4 MOCM (Hospital)"], ["dct-warehouse","5.0.5.5 Warehouse Assessment"], ["dct-sbc","5.0.5.6 SBC Coaching (Form K)"], ["analytics-training","5.0.6 Analytics Learning"]] },
+    { label: "5.0.5 Data Collection Apps", tabs: [["dct-sbd","5.0.5.1 SBD"], ["dct-mocm-phu","5.0.5.2 MOCM (PHU)"], ["dct-mocm-hospital","5.0.5.3 MOCM (Hospital)"], ["dct-mocm-lab","5.0.5.4 MOCM (Lab)"], ["dct-warehouse","5.0.5.5 Warehouse Assessment"], ["dct-sbc","5.0.5.6 SBC Coaching (Form K)"], ["dct-tes","5.0.5.7 TES Data Collection Tool"], ["analytics-training","5.0.6 Analytics Learning"], ["gf-plan","5.0.7 GF Implementation Plan"], ["partners-mapping","5.0.8 NMCP Partners Mapping"], ["world-malaria-day","5.0.9 World Malaria Day"], ["population-estimate","5.0.7 Population"], ["performance-framework","5.0.8 Performance Framework"], ["archive","5.0.9 Google Drive Files"]] },
   ]},
   { section: "6.0 D-MAT Automation", subs: [
     { label: "6.0 D-MAT Automation", tabs: [["dmat-dqa","6.0.1 Data Quality Assessment"], ["dmat-reporting","6.0.2 Reporting"], ["dmat-suspected","6.0.3 Suspected"], ["dmat-tested","6.0.4 Tested"], ["dmat-confirmed","6.0.5 Confirmed Cases"], ["dmat-treated","6.0.6 Confirmed and Treated"], ["dmat-confirmed-not-treated","6.0.7 Confirmed and Not Treated"], ["dmat-presumptive","6.0.8 Presumptive Treatment"], ["dmat-total-treated","6.0.9 Total Treated"], ["dmat-tpr","6.0.10 Test Positivity Rate"]] },
-    { label: "6.0.11 Comparative Analysis", tabs: [["dmat-u5","6.0.11.1 Under 5"], ["dmat-allages","6.0.11.2 All Ages"]] },
+    { label: "6.0.11 Comparative Analysis", tabs: [["dmat-u5","6.0.11.1 Under 5"], ["dmat-allages","6.0.11.2 All Ages"], ["dmat-eidsr","6.0.12 eIDSR"]] },
   ]},
   { section: "7.0 Retrospective Analysis", subs: [
-    { label: "7.0 Retrospective Analysis", tabs: [["snt","7.0.1 SNT 2015 to 2025"], ["mpr","7.0.2 MPR 2021 to 2023"]] },
+    { label: "7.0.1 SNT 2015 to 2025", tabs: [["snt-datasets","7.0.1.1 Datasets"], ["snt-codes","7.0.1.2 Codes"], ["snt-outputs","7.0.1.3 Outputs"], ["snt-report","7.0.1.4 Report"], ["snt-manual","7.0.1.5 SNT Manual"], ["snt-intervention-targeting","7.0.1.6 Intervention Targeting"]] },
+    { label: "7.0.2 MPR 2021 to 2023", tabs: [["mpr-datasets","7.0.2.1 Datasets"], ["mpr-codes","7.0.2.2 Codes"], ["mpr-outputs","7.0.2.3 Outputs"], ["mpr-report","7.0.2.4 Report"]] },
     { label: "7.0.3 Other Analysis", tabs: [["other-trend-allages","7.0.3.1 Trend Analysis (All Ages)"], ["other-trend-u5","7.0.3.2 Trend Analysis (Under 5)"]] },
   ]},
   { section: "8.0 Finance", subs: [
-    { label: "8.0 Finance", tabs: [["finance-data","8.0.1 Data"], ["finance-report","8.0.2 Report"], ["finance-dashboard","8.0.3 Dashboard"]] },
+    { label: "8.0 Finance", tabs: [["finance-data","8.0.1 Data"], ["finance-report","8.0.2 Report"], ["finance-dashboard","8.0.3 Dashboard"], ["nsp-costing","8.0.4 NSP Costing"]] },
   ]},
   { section: "Admin", subs: [
     { label: "Admin", tabs: [["admin-dashboard","Admin Dashboard"]] },
@@ -1294,6 +1411,87 @@ function absorbRemoteAccess(){
   storeAccess();
 }
 
+/* ================= FORGOTTEN PASSWORD =================
+   The email address is checked on the server, against the Email column of the
+   record, and the password is emailed from there. The page never receives the
+   password or the address on file, so a wrong guess learns nothing. */
+
+var fpFor = '';
+
+function openForgot(id){
+  var s = merged().filter(function(x){ return x.id === id; })[0];
+  if (!s) return;
+  fpFor = id;
+  document.getElementById('fpWho').textContent = s.name;
+  document.getElementById('fpEmail').value = '';
+  fieldErr('fpEmail', 'eFpEmail', '');
+  fpMsg('', '');
+  document.getElementById('fpShade').classList.add('on');
+  setTimeout(function(){ document.getElementById('fpEmail').focus(); }, 60);
+}
+
+function closeForgot(){
+  fpFor = '';
+  document.getElementById('fpShade').classList.remove('on');
+  document.getElementById('fpEmail').value = '';
+  fieldErr('fpEmail', 'eFpEmail', '');
+  fpMsg('', '');
+}
+
+function fpMsg(html, kind){
+  var el = document.getElementById('fpMsg');
+  if (!el) return;
+  el.innerHTML = html;
+  el.className = html ? ('msg on' + (kind ? ' ' + kind : '')) : 'msg';
+}
+
+function sendForgot(){
+  var typed = document.getElementById('fpEmail').value.trim();
+  if (!typed){
+    fieldErr('fpEmail', 'eFpEmail', 'Type the email address.');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(typed)){
+    fieldErr('fpEmail', 'eFpEmail', 'Wrong entry. That does not look like an email address.');
+    return;
+  }
+  fieldErr('fpEmail', 'eFpEmail', '');
+
+  if (!SCRIPT_URL){
+    fpMsg('No Apps Script URL is set, so no email can be sent from this device.', 'bad');
+    return;
+  }
+
+  var btn = document.getElementById('fpSend');
+  btn.disabled = true;
+  btn.classList.add('busy');
+  btn.textContent = 'Sending...';
+  fpMsg('Checking the email address on the server...', 'wait');
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'forgot', id: fpFor, email: typed })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res){
+    btn.disabled = false;
+    btn.classList.remove('busy');
+    btn.textContent = 'Send the password';
+    if (res && res.ok){
+      fpMsg('Sent. The password is on its way to <b>' + esc(typed) + '</b>. Check the inbox, and the spam folder if it is not there.', 'ok');
+    } else {
+      fpMsg((res && res.error) ? esc(res.error) : 'The email could not be sent.', 'bad');
+    }
+  })
+  .catch(function(err){
+    btn.disabled = false;
+    btn.classList.remove('busy');
+    btn.textContent = 'Send the password';
+    fpMsg('No connection to the server (' + esc(err.message) + '). Try again when the connection is back.', 'bad');
+  });
+}
+
 /* ---------- dashboard ---------- */
 function levelLabel(rank){
   for (var i = 0; i < LEVELS.length; i++) if (LEVELS[i].rank === rank) return LEVELS[i].label;
@@ -1363,6 +1561,7 @@ function cardHtml(s){
       '<span class="tag">' + esc(placeOf(s)) + '</span>' + sourceTag(s.source) +
       '<button class="rm" onclick="removeStaff(\'' + s.id + '\')">Remove</button>' +
       accessButton(s) +
+      '<button class="fp" onclick="openForgot(\'' + s.id + '\')">Forgot password</button>' +
     '</div>' +
   '</article>';
 }
@@ -1495,15 +1694,25 @@ function doRemove(id){
   var ph = document.getElementById('fPhone');
   ph.addEventListener('input', cleanPhone);
   ph.addEventListener('blur', function(){ if (ph.value.trim()) phoneOk(); });
+  document.getElementById('fEmail').addEventListener('blur', function(){
+    if (document.getElementById('fEmail').value.trim()) emailOk();
+  });
   document.getElementById('fPass2').addEventListener('blur', function(){
     if (document.getElementById('fPass').value && document.getElementById('fPass2').value) passwordOk();
   });
   document.getElementById('rmPass').addEventListener('keydown', function(e){
     if (e.key === 'Enter') { e.preventDefault(); confirmRemove(); }
   });
+  document.getElementById('fpEmail').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); sendForgot(); }
+  });
+  document.getElementById('fpShade').addEventListener('click', function(e){
+    if (e.target === this) closeForgot();
+  });
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     if (document.getElementById('rmShade').classList.contains('on')) closeRemove();
+    else if (document.getElementById('fpShade').classList.contains('on')) closeForgot();
     else if (document.getElementById('accShade').classList.contains('on')) closeAccess();
   });
   document.getElementById('rmShade').addEventListener('click', function(e){
@@ -1512,6 +1721,7 @@ function doRemove(id){
   document.getElementById('camIn').addEventListener('change', function(e){ handleFile(e.target.files[0]); });
   document.getElementById('fileIn').addEventListener('change', function(e){ handleFile(e.target.files[0]); });
   load();
+  fillPlaces();
   paintPreview();
 })();
 </script>
